@@ -80,6 +80,20 @@ func (s *Server) Run(addr ...string) error {
 	return r.Run(addr...)
 }
 
+func (s *Server) registObject(name string, rv reflect.Value) {
+	rt := rv.Type()
+	for i := 0; i < rv.NumMethod(); i++ {
+		f := rv.Method(i)
+		t := rt.Method(i)
+		param := make([]reflect.Kind, f.Type().NumIn())
+		for i := 0; i < f.Type().NumIn(); i++ {
+			param[i] = f.Type().In(i).Kind()
+		}
+		reflect.Indirect(f).Type().Name()
+		s.Methods[name+"."+t.Name] = Method{Param: param, Func: f}
+	}
+}
+
 func (s *Server) RegistMethod(name string, o interface{}) {
 	rv := reflect.ValueOf(o)
 	rt := rv.Type()
@@ -90,16 +104,9 @@ func (s *Server) RegistMethod(name string, o interface{}) {
 		}
 		s.Methods[name] = Method{Param: param, Func: rv}
 	} else if rv.Kind() == reflect.Struct {
-		for i := 0; i < rv.NumMethod(); i++ {
-			f := rv.Method(i)
-			t := rt.Method(i)
-			param := make([]reflect.Kind, f.Type().NumIn())
-			for i := 0; i < f.Type().NumIn(); i++ {
-				param[i] = f.Type().In(i).Kind()
-			}
-			reflect.Indirect(f).Type().Name()
-			s.Methods[name+"."+t.Name] = Method{Param: param, Func: f}
-		}
+		s.registObject(name, rv)
+	} else if rv.Kind() == reflect.Ptr {
+		s.registObject(name, rv)
 	} else {
 		panic("")
 	}
